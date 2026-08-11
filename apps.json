@@ -1773,5 +1773,20 @@
     "category": "Applications",
     "stars": 501,
     "releases": "apps/health.json"
+  },
+  {
+    "name": "block_administrator",
+    "title": "Block Administrator",
+    "description": "Block login of the Frappe administrator account when email-password login is enabled",
+    "repo": "https://github.com/iamimmanuelraj/block_administrator",
+    "logo_url": "https://raw.githubusercontent.com/iamimmanuelraj/block_administrator/develop/assets/logo.svg",
+    "website": "https://iamimmanuelraj.github.io/block_administrator/",
+    "documentation": "https://github.com/iamimmanuelraj/block_administrator/blob/develop/README.md",
+    "categories": [
+      "Security"
+    ],
+    "category": "Utilities",
+    "stars": 1,
+    "releases": "apps/block_administrator.json"
   }
 ]
