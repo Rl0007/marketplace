@@ -13,45 +13,52 @@ PATH.
 
 from __future__ import annotations
 
-import re
 import sys
 import tempfile
 import tomllib
-from dataclasses import dataclass
 from pathlib import Path
+
+from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.base import Validator
 
-from pilot.config import AppConfig
+from pilot.config import AppConfig, BenchConfig
 from pilot.core.app import App
 from pilot.core.app.validator import Validator as InstallValidator
+from pilot.core.bench import Bench
 from pilot.exceptions import AppValidationError, BenchError
 
 FRAPPE_REPO = "https://github.com/frappe/frappe"
-DEFAULT_BRANCH = "develop"
-
-
-@dataclass
-class _FakeBench:
-    path: Path  # App._remote_url reads this for credential lookup on clone
-    apps_path: Path
-
-    def app(self, name: str) -> App:
-        path = self.apps_path / name
-        if not path.is_dir():
-            raise BenchError(f"App {name} not found")
-        return App(AppConfig(name=name, repo="", branch=""), self)
 
 
 def frappe_branch_for(frappe_core: str) -> str:
-    """Map an advertised frappe_core range to the frappe branch to validate
-    against — the range's lower-bound major version, e.g. '>=15.0.0,<17.0.0'
-    -> 'version-15'. No lower bound (or a -dev prerelease) -> develop."""
-    match = re.search(r">=\s*(\d+)", frappe_core)
-    if not match:
-        return DEFAULT_BRANCH
-    return f"version-{match.group(1)}"
+    """The frappe branch to validate against: the major version of the lowest
+    Frappe the range admits, e.g. '>=15.0.0,<17.0.0' -> 'version-15'. A range
+    with no lower bound is rejected rather than guessed at."""
+    try:
+        specifiers = SpecifierSet(frappe_core, prereleases=True)
+    except InvalidSpecifier as exc:
+        raise AppValidationError(f"frappe_core {frappe_core!r} is not a valid version range ({exc})") from exc
+
+    # A specifier set is an AND, so the highest floor is the effective one.
+    floors = [floor for floor in map(_lower_bound, specifiers) if floor]
+    if not floors:
+        raise AppValidationError(
+            f"frappe_core {frappe_core!r} declares no lower bound, so there is no "
+            "Frappe version to validate against — declare one, e.g. '>=15.0.0,<16.0.0'"
+        )
+    return f"version-{max(floors).major}"
+
+
+def _lower_bound(specifier: Specifier) -> Version | None:
+    if specifier.operator not in (">=", ">", "==", "~="):
+        return None
+    try:
+        return Version(specifier.version.removesuffix(".*"))
+    except InvalidVersion:
+        return None
 
 
 class GetAppValidator(Validator):
@@ -117,7 +124,8 @@ class GetAppValidator(Validator):
         branch = frappe_branch_for(frappe_core)
         with tempfile.TemporaryDirectory() as tmp:
             workdir = Path(tmp)
-            bench = _FakeBench(path=workdir, apps_path=workdir / "apps")
+            # No bench.toml and no env: checks needing one skip themselves.
+            bench = Bench(BenchConfig.default(name="validation"), workdir)
             bench.apps_path.mkdir(parents=True)
 
             frappe_app = App(AppConfig(name="frappe", repo=FRAPPE_REPO, branch=branch), bench)

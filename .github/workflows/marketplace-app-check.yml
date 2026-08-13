@@ -70,8 +70,8 @@ jobs:
         # always the one bench get-app actually runs. The trade is that a
         # pilot change can turn this job red without anything in this repo
         # changing — check pilot's recent commits before assuming the app
-        # is at fault.
-        run: pip install git+https://github.com/frappe/pilot@develop
+        # is at fault. packaging is this repo's own: pilot vendors its copy.
+        run: pip install packaging git+https://github.com/frappe/pilot@develop
 
       # A worktree, not `git show`: the base side is now a directory
       # (apps.json plus apps/<name>.json), so the whole tree is needed.
