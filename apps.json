@@ -1775,6 +1775,22 @@
     "releases": "apps/health.json"
   },
   {
+    "name": "raven_integration",
+    "title": "Raven Integration",
+    "description": "Keep Raven workspace and channel membership in sync with rules from any app",
+    "repo": "https://github.com/frappe/raven_integration",
+    "logo_url": "https://raw.githubusercontent.com/frappe/raven_integration/main/assets/logo.svg",
+    "website": "https://github.com/frappe/raven_integration",
+    "documentation": "https://github.com/frappe/raven_integration/blob/main/README.md",
+    "categories": [
+      "Integrations",
+      "Communication"
+    ],
+    "category": "Integrations",
+    "stars": 0,
+    "releases": "apps/raven_integration.json"
+  },
+  {
     "name": "block_administrator",
     "title": "Block Administrator",
     "description": "Block login of the Frappe administrator account when email-password login is enabled",
