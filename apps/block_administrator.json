@@ -1,0 +1,29 @@
+{
+  "name": "block_administrator",
+  "releases": [
+    {
+      "version": "16.1.0",
+      "branch": "develop",
+      "commit": "a174f256514b192c24967f19bdfd43d69aaf521e",
+      "frappe_core": ">=16.0.0-dev,<17.0.0",
+      "dependencies": {},
+      "channel": "nightly"
+    },
+    {
+      "version": "16.1.0",
+      "branch": "version-16",
+      "commit": "4126ebd82e31b69c7e7d2d6eef6e1f9d43c65be2",
+      "frappe_core": ">=16.0.0-dev,<17.0.0",
+      "dependencies": {},
+      "channel": "stable"
+    },
+    {
+      "version": "0.0.1",
+      "branch": "version-15",
+      "commit": "78c742a2fe6989e97f0a493c4d805fa97045323a",
+      "frappe_core": ">=15.0.0,<16.0.0",
+      "dependencies": {},
+      "channel": "stable"
+    }
+  ]
+}
