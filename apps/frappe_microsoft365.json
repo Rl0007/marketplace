@@ -2,9 +2,9 @@
   "name": "frappe_microsoft365",
   "releases": [
     {
-      "version": "0.1.0",
+      "version": "1.0.0",
       "branch": "main",
-      "commit": "f3a0628b29ea1477dbac8afdc59a8f52a41ff270",
+      "commit": "20328263f307011af5d17c5a984a830c0f9f0894",
       "frappe_core": ">=15.0.0-dev,<17.0.0",
       "dependencies": {},
       "channel": "stable"
