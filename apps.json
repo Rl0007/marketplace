@@ -1804,5 +1804,20 @@
     "category": "Utilities",
     "stars": 1,
     "releases": "apps/block_administrator.json"
+  },
+  {
+    "name": "frappe_microsoft365",
+    "title": "Microsoft 365",
+    "description": "Outlook calendar two-way sync, Teams meetings, transcripts and Microsoft sign-in",
+    "repo": "https://github.com/Bizmap-Technologies-Pvt-Ltd/frappe_microsoft365",
+    "logo_url": "https://raw.githubusercontent.com/Bizmap-Technologies-Pvt-Ltd/frappe_microsoft365/main/.github/logo-transparent.png",
+    "website": "https://github.com/Bizmap-Technologies-Pvt-Ltd/frappe_microsoft365",
+    "documentation": "https://github.com/Bizmap-Technologies-Pvt-Ltd/frappe_microsoft365/blob/main/README.md",
+    "categories": [
+      "Integrations"
+    ],
+    "category": "Integrations",
+    "stars": 4,
+    "releases": "apps/frappe_microsoft365.json"
   }
 ]
