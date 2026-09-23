@@ -1839,7 +1839,7 @@
   {
     "name": "bwh_shipping",
     "title": "BWH Shipping",
-    "description": "Shipping provider integrations for Frappe/ERPNext: one provider contract, many carriers (Shiprocket, AfterShip)",
+    "description": "Shipping orchestrator for Frappe/ERPNext apps. Currently supports AfterShip and Shiprocket, and you can extend the base class to add more providers.",
     "repo": "https://github.com/bwhtech/bwh_shipping",
     "logo_url": "https://raw.githubusercontent.com/bwhtech/bwh_shipping/develop/bwh_shipping/public/images/bwh_shipping.svg",
     "website": "https://github.com/bwhtech/bwh_shipping",
