@@ -1819,5 +1819,21 @@
     "category": "Integrations",
     "stars": 4,
     "releases": "apps/frappe_microsoft365.json"
+  },
+  {
+    "name": "buzz",
+    "title": "Buzz",
+    "description": "Open Source, Powerful, and Comprehensive Event Management Platform",
+    "repo": "https://github.com/bwhtech/buzz",
+    "logo_url": "https://buzz.events/files/buzz-logo.png",
+    "website": "https://buzz.events",
+    "documentation": "https://docs.buzz.events",
+    "categories": [
+      "Events",
+      "Business"
+    ],
+    "category": "Applications",
+    "stars": 0,
+    "releases": "apps/buzz.json"
   }
 ]

@@ -1,0 +1,15 @@
+{
+  "name": "buzz",
+  "releases": [
+    {
+      "version": "2.0.0-beta.4",
+      "branch": "develop",
+      "commit": "f7d5c14c37b9bd18ef7942b117f88de2fb730388",
+      "frappe_core": ">=16.0.0,<18.0.0",
+      "dependencies": {
+        "payments": ">=0.0.1,<1.0.0"
+      },
+      "channel": "stable"
+    }
+  ]
+}
