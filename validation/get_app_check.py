@@ -29,6 +29,7 @@ from pilot.core.app import App
 from pilot.core.app.validator import Validator as InstallValidator
 from pilot.core.bench import Bench
 from pilot.exceptions import AppValidationError, BenchError
+from pilot.managers.environment import PythonEnvManager
 
 FRAPPE_REPO = "https://github.com/frappe/frappe"
 
@@ -50,6 +51,15 @@ def frappe_branch_for(frappe_core: str) -> str:
             "Frappe version to validate against — declare one, e.g. '>=15.0.0,<16.0.0'"
         )
     return f"version-{max(floors).major}"
+
+
+def frappe_requires_python(frappe_path: Path) -> str:
+    """frappe's requires-python, e.g. '>=3.14,<3.15', as a uv Python request."""
+    project = tomllib.loads((frappe_path / "pyproject.toml").read_text()).get("project", {})
+    requires_python = project.get("requires-python")
+    if not requires_python:
+        raise AppValidationError(f"frappe at {frappe_path} declares no requires-python")
+    return requires_python
 
 
 def _lower_bound(specifier: Specifier) -> Version | None:
@@ -124,7 +134,7 @@ class GetAppValidator(Validator):
         branch = frappe_branch_for(frappe_core)
         with tempfile.TemporaryDirectory() as tmp:
             workdir = Path(tmp)
-            # No bench.toml and no env: checks needing one skip themselves.
+            # No bench.toml: checks needing one skip themselves.
             bench = Bench(BenchConfig.default(name="validation"), workdir)
             bench.apps_path.mkdir(parents=True)
 
@@ -133,6 +143,10 @@ class GetAppValidator(Validator):
                 frappe_app.clone()
             except BenchError as exc:
                 raise BenchError(f"Could not clone frappe@{branch}: {exc}") from exc
+
+            # The validator builds its throwaway venv on the bench's interpreter.
+            bench.config.python_version = frappe_requires_python(frappe_app.path)
+            PythonEnvManager(bench).create_venv()
 
             app_name = self.target["name"]
             (bench.apps_path / app_name).symlink_to(self.clone_dir)
