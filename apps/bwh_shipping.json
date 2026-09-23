@@ -1,0 +1,15 @@
+{
+  "name": "bwh_shipping",
+  "releases": [
+    {
+      "version": "0.0.1",
+      "branch": "develop",
+      "commit": "7f779e83d2baaf024ab7334bc5e88f1f3013ada3",
+      "frappe_core": ">=16.0.0-dev,<18.0.0",
+      "dependencies": {
+        "erpnext": ">=16.0.0-dev,<18.0.0"
+      },
+      "channel": "stable"
+    }
+  ]
+}
