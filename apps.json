@@ -1821,6 +1821,38 @@
     "releases": "apps/frappe_microsoft365.json"
   },
   {
+    "name": "buzz",
+    "title": "Buzz",
+    "description": "Open Source, Powerful, and Comprehensive Event Management Platform",
+    "repo": "https://github.com/bwhtech/buzz",
+    "logo_url": "https://buzz.events/files/buzz-logo.png",
+    "website": "https://buzz.events",
+    "documentation": "https://docs.bwh.tech/buzz",
+    "categories": [
+      "Events",
+      "Business"
+    ],
+    "category": "Applications",
+    "stars": 0,
+    "releases": "apps/buzz.json"
+  },
+  {
+    "name": "bwh_shipping",
+    "title": "BWH Shipping",
+    "description": "Shipping orchestrator for Frappe/ERPNext apps. Currently supports AfterShip and Shiprocket, and you can extend the base class to add more providers.",
+    "repo": "https://github.com/bwhtech/bwh_shipping",
+    "logo_url": "https://raw.githubusercontent.com/bwhtech/bwh_shipping/develop/bwh_shipping/public/images/bwh_shipping.svg",
+    "website": "https://github.com/bwhtech/bwh_shipping",
+    "documentation": "https://docs.bwh.tech/bwh-shipping/get-started/overview",
+    "categories": [
+      "Integrations",
+      "E-Commerce"
+    ],
+    "category": "Integrations",
+    "stars": 0,
+    "releases": "apps/bwh_shipping.json"
+  },
+  {
     "name": "bwh_payments",
     "title": "BWH Payments",
     "description": "Payment gateway integrations for Frappe/ERPNext: Stripe, Razorpay, Tabby and Telr",
