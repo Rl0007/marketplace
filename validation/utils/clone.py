@@ -16,12 +16,6 @@ def clone_release(repo: str, branch: str, commit: str, clone_dir: Path) -> None:
 
 
 def checkout_commit(repo: str, branch: str, commit: str, clone_dir: Path) -> None:
-    """Check out exactly `commit`, without the ancestry proof.
-
-    For releases already in the registry, such as the apps a release depends
-    on: they were proven when published, and the proof fetches the whole
-    branch history, which is slow for an app the size of erpnext.
-    """
     clone_dir.mkdir(parents=True, exist_ok=True)
     _run(["git", "init", "-q", str(clone_dir)])
     _run(["git", "-C", str(clone_dir), "remote", "add", "origin", repo])
