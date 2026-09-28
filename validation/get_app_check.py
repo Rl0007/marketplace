@@ -23,6 +23,7 @@ from packaging.version import InvalidVersion, Version
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.base import Validator
+from utils.clone import checkout_commit
 
 from pilot.config import AppConfig, BenchConfig
 from pilot.core.app import App
@@ -74,10 +75,11 @@ def _lower_bound(specifier: Specifier) -> Version | None:
 class GetAppValidator(Validator):
     name = "get-app validator"
 
-    def __init__(self, release: dict, clone_dir: Path) -> None:
+    def __init__(self, release: dict, clone_dir: Path, registry: dict[str, dict] | None = None) -> None:
         super().__init__()
         self.target = release
         self.clone_dir = clone_dir
+        self.registry = registry or {}
 
     def fail(self, message: str, **details) -> None:
         """Report install output against the app's own name, not the temp checkout."""
@@ -144,6 +146,10 @@ class GetAppValidator(Validator):
             except BenchError as exc:
                 raise BenchError(f"Could not clone frappe@{branch}: {exc}") from exc
 
+            # pilot installs a declared dependency only if the bench already has
+            # it; without this, any top-level import of one fails to resolve.
+            self._clone_dependencies(self.target, branch, bench.apps_path)
+
             # The validator builds its throwaway venv on the bench's interpreter.
             bench.config.python_version = frappe_requires_python(frappe_app.path)
             PythonEnvManager(bench).create_venv()
@@ -155,3 +161,44 @@ class GetAppValidator(Validator):
                 AppConfig(name=app_name, repo=self.target["repo"], branch=self.target["branch"]), bench
             )
             InstallValidator(app).validate()
+
+    def _clone_dependencies(self, release: dict, frappe_branch: str, apps_path: Path) -> None:
+        """Clone every app `release` depends on, transitively, at its registry release."""
+        for name, specifier in (release.get("dependencies") or {}).items():
+            if name == "frappe" or (apps_path / name).exists():
+                continue
+            dependency = self._dependency_release(name, specifier, frappe_branch)
+            try:
+                checkout_commit(dependency["repo"], dependency["branch"], dependency["commit"], apps_path / name)
+            except RuntimeError as exc:
+                raise BenchError(f"Could not clone dependency {name}@{dependency['commit'][:8]}: {exc}") from exc
+            self._clone_dependencies(dependency, frappe_branch, apps_path)
+
+    def _dependency_release(self, name: str, specifier: str, frappe_branch: str) -> dict:
+        """The newest registry release of `name` within `specifier` that runs on `frappe_branch`."""
+        app = self.registry.get(name)
+        if not app:
+            raise AppValidationError(
+                f"'{self.target['name']}' depends on '{name}', which is not in the marketplace registry"
+            )
+        try:
+            allowed = SpecifierSet(specifier, prereleases=True)
+        except InvalidSpecifier as exc:
+            raise AppValidationError(f"dependency {name} {specifier!r} is not a valid version range ({exc})") from exc
+
+        candidates = []
+        for release in app.get("releases", []):
+            try:
+                version = Version(release["version"])
+                runs_on_branch = frappe_branch_for(release["frappe_core"]) == frappe_branch
+            except (InvalidVersion, AppValidationError, KeyError):
+                continue
+            if runs_on_branch and version in allowed:
+                candidates.append((version, release))
+        if not candidates:
+            raise AppValidationError(
+                f"'{self.target['name']}' depends on {name} {specifier}, but the registry has no "
+                f"release of {name} in that range for frappe {frappe_branch}"
+            )
+        _, release = max(candidates, key=lambda candidate: candidate[0])
+        return {"name": name, "repo": app["repo"], **release}
