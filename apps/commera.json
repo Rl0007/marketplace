@@ -4,7 +4,7 @@
     {
       "version": "1.0.0",
       "branch": "version-16",
-      "commit": "6174f9915fa73067a42dfa24d95c905a5bf544b2",
+      "commit": "e32966a0378ec94b1c022cebd1e9b07d04673f52",
       "frappe_core": ">=16.0.0,<17.0.0",
       "dependencies": {
         "erpnext": ">=16.0.0,<17.0.0",
