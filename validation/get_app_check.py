@@ -162,29 +162,52 @@ class GetAppValidator(Validator):
             )
             InstallValidator(app).validate()
 
-    def _clone_dependencies(self, release: dict, frappe_branch: str, apps_path: Path) -> None:
-        """Clone every app `release` depends on, transitively, at its registry release."""
+    def _clone_dependencies(
+        self, release: dict, frappe_branch: str, apps_path: Path, chosen: dict[str, dict] | None = None
+    ) -> None:
+        """Clone every app `release` depends on, transitively, at its registry release.
+
+        An app reached twice is cloned once; `chosen` keeps the release picked for
+        it so every later range is checked against that release.
+        """
+        chosen = {} if chosen is None else chosen
         for name, specifier in (release.get("dependencies") or {}).items():
-            if name == "frappe" or (apps_path / name).exists():
+            if name == "frappe":
                 continue
-            dependency = self._dependency_release(name, specifier, frappe_branch)
+            allowed = self._version_range(name, specifier)
+            if name in chosen:
+                picked = chosen[name]
+                if Version(picked["version"]) not in allowed:
+                    raise AppValidationError(
+                        f"'{release['name']}' needs {name} {specifier}, but {name} {picked['version']} "
+                        "was already chosen to satisfy another dependency"
+                    )
+                continue
+            dependency = self._dependency_release(name, specifier, allowed, frappe_branch)
+            chosen[name] = dependency
             try:
                 checkout_commit(dependency["repo"], dependency["branch"], dependency["commit"], apps_path / name)
             except RuntimeError as exc:
                 raise BenchError(f"Could not clone dependency {name}@{dependency['commit'][:8]}: {exc}") from exc
-            self._clone_dependencies(dependency, frappe_branch, apps_path)
+            self._clone_dependencies(dependency, frappe_branch, apps_path, chosen)
 
-    def _dependency_release(self, name: str, specifier: str, frappe_branch: str) -> dict:
-        """The newest registry release of `name` within `specifier` that runs on `frappe_branch`."""
+    @staticmethod
+    def _version_range(name: str, specifier: str) -> SpecifierSet:
+        try:
+            return SpecifierSet(specifier, prereleases=True)
+        except InvalidSpecifier as exc:
+            raise AppValidationError(f"dependency {name} {specifier!r} is not a valid version range ({exc})") from exc
+
+    def _dependency_release(
+        self, name: str, specifier: str, allowed: SpecifierSet, frappe_branch: str
+    ) -> dict:
+        """The newest registry release of `name` in `allowed` that runs on `frappe_branch`,
+        preferring stable over nightly when both advertise the same version."""
         app = self.registry.get(name)
         if not app:
             raise AppValidationError(
                 f"'{self.target['name']}' depends on '{name}', which is not in the marketplace registry"
             )
-        try:
-            allowed = SpecifierSet(specifier, prereleases=True)
-        except InvalidSpecifier as exc:
-            raise AppValidationError(f"dependency {name} {specifier!r} is not a valid version range ({exc})") from exc
 
         candidates = []
         for release in app.get("releases", []):
@@ -194,11 +217,11 @@ class GetAppValidator(Validator):
             except (InvalidVersion, AppValidationError, KeyError):
                 continue
             if runs_on_branch and version in allowed:
-                candidates.append((version, release))
+                candidates.append((version, release.get("channel") == "stable", release))
         if not candidates:
             raise AppValidationError(
                 f"'{self.target['name']}' depends on {name} {specifier}, but the registry has no "
                 f"release of {name} in that range for frappe {frappe_branch}"
             )
-        _, release = max(candidates, key=lambda candidate: candidate[0])
+        *_, release = max(candidates, key=lambda candidate: candidate[:2])
         return {"name": name, "repo": app["repo"], **release}
