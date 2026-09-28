@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import tomllib
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
@@ -28,8 +29,10 @@ from utils.clone import checkout_commit
 from pilot.config import AppConfig, BenchConfig
 from pilot.core.app import App
 from pilot.core.app.validator import Validator as InstallValidator
+from pilot.core.app.validator.frappe_compatibility import FrappeCompatibilityCheck
 from pilot.core.bench import Bench
-from pilot.exceptions import AppValidationError, BenchError
+from pilot.exceptions import AppNotFoundError, AppValidationError, BenchError, DependencyResolutionError
+from pilot.integrations.marketplace import Marketplace
 from pilot.managers.environment import PythonEnvManager
 
 FRAPPE_REPO = "https://github.com/frappe/frappe"
@@ -146,9 +149,7 @@ class GetAppValidator(Validator):
             except BenchError as exc:
                 raise BenchError(f"Could not clone frappe@{branch}: {exc}") from exc
 
-            # pilot installs a declared dependency only if the bench already has
-            # it; without this, any top-level import of one fails to resolve.
-            self._clone_dependencies(branch, bench.apps_path)
+            self.install_dependencies(bench, frappe_app)
 
             # The validator builds its throwaway venv on the bench's interpreter.
             bench.config.python_version = frappe_requires_python(frappe_app.path)
@@ -162,77 +163,42 @@ class GetAppValidator(Validator):
             )
             InstallValidator(app).validate()
 
-    def _clone_dependencies(self, frappe_branch: str, apps_path: Path) -> None:
-        """Clone every app the target depends on, transitively, at its registry release."""
-        for name, release in self._resolve_dependencies(frappe_branch).items():
-            try:
-                checkout_commit(release["repo"], release["branch"], release["commit"], apps_path / name)
-            except RuntimeError as exc:
-                raise BenchError(f"Could not clone dependency {name}@{release['commit'][:8]}: {exc}") from exc
+    def install_dependencies(self, bench: Bench, frappe_app: App) -> None:
+        if not self.registry:
+            return
 
-    def _resolve_dependencies(self, frappe_branch: str) -> dict[str, dict]:
-        """One registry release per dependency, satisfying every range declared for it.
-
-        A pass picks the newest release in the ranges known so far, then collects the
-        ranges its picks declare; it repeats until no pass adds a range, so an app
-        reached twice gets a release both paths accept. Ranges only accumulate, so
-        this ends.
-        """
-        known: dict[str, frozenset[str]] = {}
-        while True:
-            resolved, declared = self._resolve_pass(frappe_branch, known)
-            merged = {name: known.get(name, frozenset()) | ranges for name, ranges in declared.items()}
-            merged = {**known, **merged}
-            if merged == known:
-                return resolved
-            known = merged
-
-    def _resolve_pass(
-        self, frappe_branch: str, known: dict[str, frozenset[str]]
-    ) -> tuple[dict[str, dict], dict[str, frozenset[str]]]:
-        resolved: dict[str, dict] = {}
-        declared: dict[str, frozenset[str]] = {}
-        pending = [self.target]
-        while pending:
-            release = pending.pop()
-            for name, specifier in (release.get("dependencies") or {}).items():
-                if name == "frappe":
-                    continue
-                declared[name] = declared.get(name, frozenset()) | {specifier}
-                if name in resolved:
-                    continue
-                ranges = known.get(name, frozenset()) | declared[name]
-                resolved[name] = self._dependency_release(name, ranges, frappe_branch)
-                pending.append(resolved[name])
-        return resolved, declared
-
-    def _dependency_release(self, name: str, ranges: frozenset[str], frappe_branch: str) -> dict:
-        """The newest registry release of `name` inside every range that runs on
-        `frappe_branch`, preferring stable over nightly when both advertise a version."""
-        app = self.registry.get(name)
-        if not app:
-            raise AppValidationError(
-                f"'{self.target['name']}' depends on '{name}', which is not in the marketplace registry"
-            )
-        wanted = ", ".join(sorted(ranges))
+        name = self.target["name"]
+        registry = {**self.registry, name: {**self.registry[name], "releases": [self.target]}}
         try:
-            allowed = SpecifierSet(",".join(sorted(ranges)), prereleases=True)
-        except InvalidSpecifier as exc:
-            raise AppValidationError(f"dependency {name} {wanted!r} is not a valid version range ({exc})") from exc
+            resolver = RegistryMarketplace(bench, frappe_app=frappe_app, apps=registry).find_app(name)
+            dependencies = resolver.resolve()[:-1]
+        except (AppNotFoundError, DependencyResolutionError) as exc:
+            raise AppValidationError(str(exc)) from exc
 
-        candidates = []
-        for release in app.get("releases", []):
-            try:
-                version = Version(release["version"])
-                runs_on_branch = frappe_branch_for(release["frappe_core"]) == frappe_branch
-            except (InvalidVersion, AppValidationError, KeyError):
+        for dependency in dependencies:
+            if dependency.app == "frappe":
                 continue
-            if runs_on_branch and version in allowed:
-                candidates.append((version, release.get("channel") == "stable", release))
-        if not candidates:
-            raise AppValidationError(
-                f"'{self.target['name']}' needs {name} {wanted}, but the registry has no release "
-                f"of {name} in that range for frappe {frappe_branch}"
-            )
-        *_, release = max(candidates, key=lambda candidate: candidate[:2])
-        return {"name": name, "repo": app["repo"], **release}
+            try:
+                checkout_commit(
+                    dependency.repo, dependency.branch, dependency.commit, bench.apps_path / dependency.app
+                )
+            except RuntimeError as exc:
+                raise BenchError(f"Could not clone {dependency.app}@{dependency.commit[:8]}: {exc}") from exc
+
+
+@dataclass
+class RegistryMarketplace(Marketplace):
+    frappe_app: App | None = None
+    apps: dict[str, dict] = field(default_factory=dict)
+
+    def get_current_frappe_version(self) -> str:
+        return str(FrappeCompatibilityCheck._installed_version(self.frappe_app, "frappe"))
+
+    def _load_registry(self) -> list[dict]:
+        return [
+            {key: value for key, value in app.items() if key not in ("releases", "releases_path")}
+            for app in self.apps.values()
+        ]
+
+    def releases(self, app_name: str) -> tuple[dict, ...]:
+        return self._newest_first(self.apps.get(app_name, {}).get("releases", []))
