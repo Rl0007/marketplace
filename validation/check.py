@@ -45,7 +45,7 @@ def check_app_schema(name: str, app: dict, section: Section) -> bool:
     return passed
 
 
-def check_release(release: dict, section: Section, registry: dict[str, dict]) -> bool:
+def check_release(release: dict, section: Section, registry: dict[str, dict] | None = None) -> bool:
     print(
         f"\n=== Checking {release['name']} "
         f"({release.get('repo')}@{(release.get('commit') or '')[:8]}) ===",
@@ -56,7 +56,7 @@ def check_release(release: dict, section: Section, registry: dict[str, dict]) ->
         clone_dir = Path(tmp) / "app"
         if not _clone(release, clone_dir, section):
             return False
-        return _run_post_clone_checks(release, clone_dir, section, registry)
+        return _run_post_clone_checks(release, clone_dir, section, registry=registry)
 
 
 def _clone(release: dict, clone_dir: Path, section: Section) -> bool:
@@ -72,7 +72,9 @@ def _clone(release: dict, clone_dir: Path, section: Section) -> bool:
         return False
 
 
-def _run_post_clone_checks(release: dict, clone_dir: Path, section: Section, registry: dict[str, dict]) -> bool:
+def _run_post_clone_checks(
+    release: dict, clone_dir: Path, section: Section, registry: dict[str, dict] | None = None
+) -> bool:
     """Run clone-dependent checks in order, stopping at the first failure."""
     repo, commit = release["repo"], release["commit"]
     checks = [
@@ -155,7 +157,7 @@ def main() -> None:
     release_results = {}
     for release in find_changed_releases(marketplace, valid_new_apps):
         section = report.section(release_key(release), subtitle=release_link(release))
-        release_results[release_key(release)] = check_release(release, section, new_apps)
+        release_results[release_key(release)] = check_release(release, section, registry=new_apps)
 
     _write_report(report, args.report)
 

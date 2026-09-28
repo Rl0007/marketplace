@@ -148,7 +148,7 @@ class GetAppValidator(Validator):
 
             # pilot installs a declared dependency only if the bench already has
             # it; without this, any top-level import of one fails to resolve.
-            self._clone_dependencies(self.target, branch, bench.apps_path)
+            self._clone_dependencies(branch, bench.apps_path)
 
             # The validator builds its throwaway venv on the bench's interpreter.
             bench.config.python_version = frappe_requires_python(frappe_app.path)
@@ -162,52 +162,63 @@ class GetAppValidator(Validator):
             )
             InstallValidator(app).validate()
 
-    def _clone_dependencies(
-        self, release: dict, frappe_branch: str, apps_path: Path, chosen: dict[str, dict] | None = None
-    ) -> None:
-        """Clone every app `release` depends on, transitively, at its registry release.
-
-        An app reached twice is cloned once; `chosen` keeps the release picked for
-        it so every later range is checked against that release.
-        """
-        chosen = {} if chosen is None else chosen
-        for name, specifier in (release.get("dependencies") or {}).items():
-            if name == "frappe":
-                continue
-            allowed = self._version_range(name, specifier)
-            if name in chosen:
-                picked = chosen[name]
-                if Version(picked["version"]) not in allowed:
-                    raise AppValidationError(
-                        f"'{release['name']}' needs {name} {specifier}, but {name} {picked['version']} "
-                        "was already chosen to satisfy another dependency"
-                    )
-                continue
-            dependency = self._dependency_release(name, specifier, allowed, frappe_branch)
-            chosen[name] = dependency
+    def _clone_dependencies(self, frappe_branch: str, apps_path: Path) -> None:
+        """Clone every app the target depends on, transitively, at its registry release."""
+        for name, release in self._resolve_dependencies(frappe_branch).items():
             try:
-                checkout_commit(dependency["repo"], dependency["branch"], dependency["commit"], apps_path / name)
+                checkout_commit(release["repo"], release["branch"], release["commit"], apps_path / name)
             except RuntimeError as exc:
-                raise BenchError(f"Could not clone dependency {name}@{dependency['commit'][:8]}: {exc}") from exc
-            self._clone_dependencies(dependency, frappe_branch, apps_path, chosen)
+                raise BenchError(f"Could not clone dependency {name}@{release['commit'][:8]}: {exc}") from exc
 
-    @staticmethod
-    def _version_range(name: str, specifier: str) -> SpecifierSet:
-        try:
-            return SpecifierSet(specifier, prereleases=True)
-        except InvalidSpecifier as exc:
-            raise AppValidationError(f"dependency {name} {specifier!r} is not a valid version range ({exc})") from exc
+    def _resolve_dependencies(self, frappe_branch: str) -> dict[str, dict]:
+        """One registry release per dependency, satisfying every range declared for it.
 
-    def _dependency_release(
-        self, name: str, specifier: str, allowed: SpecifierSet, frappe_branch: str
-    ) -> dict:
-        """The newest registry release of `name` in `allowed` that runs on `frappe_branch`,
-        preferring stable over nightly when both advertise the same version."""
+        A pass picks the newest release in the ranges known so far, then collects the
+        ranges its picks declare; it repeats until no pass adds a range, so an app
+        reached twice gets a release both paths accept. Ranges only accumulate, so
+        this ends.
+        """
+        known: dict[str, frozenset[str]] = {}
+        while True:
+            resolved, declared = self._resolve_pass(frappe_branch, known)
+            merged = {name: known.get(name, frozenset()) | ranges for name, ranges in declared.items()}
+            merged = {**known, **merged}
+            if merged == known:
+                return resolved
+            known = merged
+
+    def _resolve_pass(
+        self, frappe_branch: str, known: dict[str, frozenset[str]]
+    ) -> tuple[dict[str, dict], dict[str, frozenset[str]]]:
+        resolved: dict[str, dict] = {}
+        declared: dict[str, frozenset[str]] = {}
+        pending = [self.target]
+        while pending:
+            release = pending.pop()
+            for name, specifier in (release.get("dependencies") or {}).items():
+                if name == "frappe":
+                    continue
+                declared[name] = declared.get(name, frozenset()) | {specifier}
+                if name in resolved:
+                    continue
+                ranges = known.get(name, frozenset()) | declared[name]
+                resolved[name] = self._dependency_release(name, ranges, frappe_branch)
+                pending.append(resolved[name])
+        return resolved, declared
+
+    def _dependency_release(self, name: str, ranges: frozenset[str], frappe_branch: str) -> dict:
+        """The newest registry release of `name` inside every range that runs on
+        `frappe_branch`, preferring stable over nightly when both advertise a version."""
         app = self.registry.get(name)
         if not app:
             raise AppValidationError(
                 f"'{self.target['name']}' depends on '{name}', which is not in the marketplace registry"
             )
+        wanted = ", ".join(sorted(ranges))
+        try:
+            allowed = SpecifierSet(",".join(sorted(ranges)), prereleases=True)
+        except InvalidSpecifier as exc:
+            raise AppValidationError(f"dependency {name} {wanted!r} is not a valid version range ({exc})") from exc
 
         candidates = []
         for release in app.get("releases", []):
@@ -220,8 +231,8 @@ class GetAppValidator(Validator):
                 candidates.append((version, release.get("channel") == "stable", release))
         if not candidates:
             raise AppValidationError(
-                f"'{self.target['name']}' depends on {name} {specifier}, but the registry has no "
-                f"release of {name} in that range for frappe {frappe_branch}"
+                f"'{self.target['name']}' needs {name} {wanted}, but the registry has no release "
+                f"of {name} in that range for frappe {frappe_branch}"
             )
         *_, release = max(candidates, key=lambda candidate: candidate[:2])
         return {"name": name, "repo": app["repo"], **release}
