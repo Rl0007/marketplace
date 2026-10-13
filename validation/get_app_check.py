@@ -147,6 +147,9 @@ class GetAppValidator(Validator):
             )
         except urllib.error.URLError as exc:
             self.fail(f"Could not check the prebuilt assets at {url} ({exc.reason})")
+        # A timeout while waiting for the response is raised as is, not wrapped in URLError.
+        except TimeoutError:
+            self.fail(f"Timed out checking the prebuilt assets at {url}; run /rereview to try again")
 
     def _dynamic_version(self, project_name: str) -> str:
         """__version__ from <module>/__init__.py, for apps using dynamic versioning."""
