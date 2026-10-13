@@ -4,15 +4,15 @@
     {
       "version": "4.0.0-dev",
       "branch": "develop",
-      "commit": "552ec6194f8bc41555de02cc7961e1f24e47d596",
+      "commit": "fcdffa2052cabbcbcd0102455906c00aa800de21",
       "frappe_core": ">=17.0.0-dev,<18.0.0",
       "dependencies": {},
       "channel": "nightly"
     },
     {
-      "version": "3.14.3",
+      "version": "3.14.4",
       "branch": "version-3",
-      "commit": "949e4369f8d567feacc68c3e6e70044748fb1e3d",
+      "commit": "be84d624578c72b0881c5f0d28f8c04758b2247f",
       "frappe_core": ">=15.0.0,<17.0.0",
       "dependencies": {},
       "channel": "stable"
