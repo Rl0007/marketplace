@@ -2,9 +2,9 @@
   "name": "commera",
   "releases": [
     {
-      "version": "16.0.0-beta.2",
+      "version": "16.0.0-beta.3",
       "branch": "version-16",
-      "commit": "1a61e09c39bedd266ea401f1364f1d114c0b4420",
+      "commit": "27298ee2d1e358162ac814103aad206bea9ea820",
       "frappe_core": ">=16.0.0,<17.0.0",
       "dependencies": {
         "erpnext": ">=16.0.0,<17.0.0",
