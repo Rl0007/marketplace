@@ -643,10 +643,10 @@
     "name": "raven",
     "title": "Raven",
     "description": "Enterprise-first messaging platform that integrates with ERPNext",
-    "repo": "https://github.com/The-Commit-Company/Raven",
-    "logo_url": "https://cloud.frappe.io/files/raven-logo.webp",
+    "repo": "https://github.com/frappe/raven",
+    "logo_url": "https://cloud.frappe.io/files/icon-512x5121f918f.webp",
     "website": "https://ravenchat.ai",
-    "documentation": "https://github.com/The-Commit-Company/Raven",
+    "documentation": "https://github.com/frappe/raven",
     "categories": [
       "Communication"
     ],
@@ -816,6 +816,22 @@
     "category": "Applications",
     "stars": 2819,
     "releases": "apps/crm.json"
+  },
+  {
+    "name": "whatsapp",
+    "title": "WhatsApp",
+    "description": "Official WhatsApp integration for Frappe apps, built on Meta's WhatsApp Business Cloud API",
+    "repo": "https://github.com/frappe/whatsapp",
+    "logo_url": null,
+    "website": "https://github.com/frappe/whatsapp",
+    "documentation": "https://github.com/frappe/whatsapp/blob/main/README.md",
+    "categories": [
+      "Communication",
+      "Integrations"
+    ],
+    "category": "Integrations",
+    "stars": 25,
+    "releases": "apps/whatsapp.json"
   },
   {
     "name": "erpnext",

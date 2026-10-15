@@ -2,10 +2,18 @@
   "name": "insights",
   "releases": [
     {
-      "version": "3.3.1",
+      "version": "4.0.0-dev",
       "branch": "develop",
-      "commit": "1a78fa6631d158f115c507d1224cc50a3d0de36a",
-      "frappe_core": ">=15.0.0",
+      "commit": "fcdffa2052cabbcbcd0102455906c00aa800de21",
+      "frappe_core": ">=17.0.0-dev,<18.0.0",
+      "dependencies": {},
+      "channel": "nightly"
+    },
+    {
+      "version": "3.14.4",
+      "branch": "version-3",
+      "commit": "be84d624578c72b0881c5f0d28f8c04758b2247f",
+      "frappe_core": ">=15.0.0,<17.0.0",
       "dependencies": {},
       "channel": "stable"
     }
